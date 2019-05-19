@@ -1,66 +1,69 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Cinemachine;
 
-public class LevelGeneration : MonoBehaviour
+public class LevelGeneration
 {
-    public Transform[] startingPositions;
-    public Transform[] positions;
-    public GameObject player;
-    public float playerOffset = 5;
-    public GameObject[] rooms; // index 0 --> closed, index 1 --> LR, index 2 --> LRT, index 3 --> LRB, index 4 --> LRBT
-    public int moveAmount;
-    public float minX, minY, maxX;
-    public float startTimeBtwRoom = 0.25f;
-    public LayerMask room;
-    public CinemachineVirtualCamera cvc;
-
-    private int direction;
-    private float timeBtwRoom;
-    private bool stopGeneration = false;
-    private int downCounter = 0;
-    private Vector2 startPosition;
-    private Vector2 endPosition;
-
-    private void Start()
+    class Position
     {
-        int randStartPosition = Random.Range(1, startingPositions.Length);
-        transform.position = startingPositions[randStartPosition].position;
-        startPosition = new Vector2(transform.position.x, transform.position.y);
-        Instantiate(rooms[1], transform.position, Quaternion.identity);
-        Vector3 playerPos = transform.position;
-        playerPos.x -= playerOffset;
-        playerPos.y += playerOffset;
-        GameObject playerObject = Instantiate(player, playerPos, Quaternion.identity);
-        cvc.Follow = playerObject.transform;
-        direction = Random.Range(1, 6);
+        public int X, Y;
+
+        public Position(int x, int y)
+        {
+            X = x;
+            Y = y;
+        }
+
     }
-    private void Update()
+
+    readonly int mapSize = 4;
+
+    int[,] map;
+    // index 0 --> not on the solution path, index 1 --> LR, index 2 --> LRT, index 3 --> LRB, index 4 --> LRBT, 
+    // index 5 --> closed, index 6 --> start, index 7 --> end
+
+    int direction;
+    int downCounter;
+    Position currentPosition;
+    bool stopGeneration = false;
+
+    public LevelGeneration(int mapSize)
     {
-        if(!stopGeneration && timeBtwRoom <= 0)
+        this.mapSize = mapSize;
+    }
+
+    public int[,] MakeMap()
+    {
+        map = new int[mapSize, mapSize];
+        for (int i = 0; i < mapSize; i++)
+        {
+            for (int j = 0; j < mapSize; j++)
+            {
+                map[i, j] = 0;
+            }
+        }
+        int startPositionX = Random.Range(0, mapSize);
+        currentPosition = new Position(startPositionX, 0);
+        map[currentPosition.Y, currentPosition.X] = 6;
+
+        direction = Random.Range(1, 6);
+
+        while (!stopGeneration)
         {
             Move();
-            timeBtwRoom = startTimeBtwRoom;
         }
-        else
-        {
-            timeBtwRoom -= Time.deltaTime;
-        }
+
+        return map;
     }
 
     private void Move()
     {
         if (direction == 1 || direction == 2) // move RIGHT
         {
-            if (transform.position.x < maxX)
+            if (currentPosition.X < mapSize - 1)
             {
-                Vector2 newPos = new Vector2(transform.position.x + moveAmount, transform.position.y);
-                transform.position = newPos;
-
-                int randRoom = Random.Range(1, rooms.Length);
-                Instantiate(rooms[randRoom], transform.position, Quaternion.identity);
-
+                currentPosition.X++;
+                map[currentPosition.Y, currentPosition.X] = Random.Range(1, 5);
 
                 direction = Random.Range(1, 4);
                 downCounter = 0;
@@ -72,13 +75,10 @@ public class LevelGeneration : MonoBehaviour
         }
         else if (direction == 4 || direction == 5) // move LEFT
         {
-            if (transform.position.x > minX)
+            if (currentPosition.X > 0)
             {
-                Vector2 newPos = new Vector2(transform.position.x - moveAmount, transform.position.y);
-                transform.position = newPos;
-
-                int randRoom = Random.Range(1, rooms.Length);
-                Instantiate(rooms[randRoom], transform.position, Quaternion.identity);
+                currentPosition.X--;
+                map[currentPosition.Y, currentPosition.X] = Random.Range(1, 5);
 
                 direction = Random.Range(3, 6);
                 downCounter = 0;
@@ -90,42 +90,38 @@ public class LevelGeneration : MonoBehaviour
         }
         else // move DOWN
         {
-            if (transform.position.y > minY)
+            if (currentPosition.Y < mapSize - 1)
             {
                 downCounter++;
 
-                Collider2D roomDetector = Physics2D.OverlapCircle(transform.position, 1, room);
-                if (roomDetector.GetComponent<Room>().type != 3 && roomDetector.GetComponent<Room>().type != 4)
+                if (!(map[currentPosition.Y, currentPosition.X] == 3 || map[currentPosition.Y, currentPosition.X] == 4))
                 {
-                    roomDetector.GetComponent<Room>().DestroyRoom();
-
-                    if(downCounter >= 2)
+                    if (downCounter >= 2)
                     {
-                        Instantiate(rooms[4], transform.position, Quaternion.identity);
+                        map[currentPosition.Y, currentPosition.X] = 4;
                     }
                     else
                     {
-                        int randBottomOpeningRoom = Random.Range(3, 5);
-                        Instantiate(rooms[randBottomOpeningRoom], transform.position, Quaternion.identity);
+                        map[currentPosition.Y, currentPosition.X] = Random.Range(3, 5);
                     }
                 }
 
-                Vector2 newPos = new Vector2(transform.position.x, transform.position.y - moveAmount);
-                transform.position = newPos;
+                currentPosition.Y++;
 
                 int randTopOpeningRoom = Random.Range(2, 4);
                 if (randTopOpeningRoom == 3)
                 {
                     randTopOpeningRoom = 4;
                 }
-                Instantiate(rooms[randTopOpeningRoom], transform.position, Quaternion.identity);
+                map[currentPosition.Y, currentPosition.X] = randTopOpeningRoom;
 
                 direction = Random.Range(1, 6);
             }
             else
             {
                 stopGeneration = true;
-                endPosition = new Vector2(transform.position.x, transform.position.y);
+                map[currentPosition.Y, currentPosition.X] = 7;
+
                 FillEmptySpaces();
             }
         }
@@ -133,16 +129,16 @@ public class LevelGeneration : MonoBehaviour
 
     private void FillEmptySpaces()
     {
-        Collider2D roomDetector;
-
-        foreach (var pos in positions)
+        for (int i = 0; i < mapSize; i++)
         {
-            roomDetector = Physics2D.OverlapCircle(pos.transform.position, 1, room);
-            if (roomDetector == null)
+            for (int j = 0; j < mapSize; j++)
             {
-                int randRoom = Random.Range(0, rooms.Length);
-                Instantiate(rooms[randRoom], pos.transform.position, Quaternion.identity);
+                if (map[i, j] == 0)
+                {
+                    map[i, j] = Random.Range(1, 6);
+                }
             }
+
         }
     }
 }
