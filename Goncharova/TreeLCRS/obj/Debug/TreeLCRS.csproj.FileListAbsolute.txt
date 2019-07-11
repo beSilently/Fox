@@ -1,0 +1,6 @@
+C:\Users\Anna\source\repos\TreeLCRS\TreeLCRS\bin\Debug\TreeLCRS.dll
+C:\Users\Anna\source\repos\TreeLCRS\TreeLCRS\bin\Debug\TreeLCRS.pdb
+C:\Users\Anna\source\repos\TreeLCRS\TreeLCRS\obj\Debug\TreeLCRS.csprojAssemblyReference.cache
+C:\Users\Anna\source\repos\TreeLCRS\TreeLCRS\obj\Debug\TreeLCRS.csproj.CoreCompileInputs.cache
+C:\Users\Anna\source\repos\TreeLCRS\TreeLCRS\obj\Debug\TreeLCRS.dll
+C:\Users\Anna\source\repos\TreeLCRS\TreeLCRS\obj\Debug\TreeLCRS.pdb
